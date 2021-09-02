@@ -85,3 +85,13 @@ This project is focused on **Run-Time Integration** using **Webpack Module Feder
 - Focus on Webpack and how it works
 
 ---
+
+## Module federation Process
+
+- Designate one app as the Host(CONTAINER) and on as the Remote(PRODUCTS)
+- In the Remote, decide which modules(files) you want to make available to other projects
+- Set up Module Federation plugin to _expose_ those files
+- In the Host, decide which files you want to get from the remote
+- Set up Module Federation plugin to fetch those files
+- In the Host, refactor the entry point to load asynchronously
+- In the Host, import whatever files you need from the remote
