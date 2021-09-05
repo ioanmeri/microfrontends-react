@@ -8,9 +8,13 @@ module.exports = {
   },
   plugins: [
     new ModuleFederationPlugin({
-      name: "container",
+      name: "container", // Not used, added for clarity. Only needed for Remotes
       remotes: {
-        products: "products@http://localhost:8081/remoteEntry.js",
+        // List projects that the Container can search to get additional code
+        products: "products@http://localhost:8081/remoteEntry.js", // Load the file at the listed URL if anything in Container has import like: import abc from 'products'
+        //         |                          |-> URL for ther remoteEntry file
+        //         |-> Related to the 'name' property in the Products webpack config file
+        cart: "cart@http://localhost:8082/remoteEntry.js",
       },
     }),
     new HtmlWebpackPlugin({

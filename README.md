@@ -95,3 +95,28 @@ This project is focused on **Run-Time Integration** using **Webpack Module Feder
 - Set up Module Federation plugin to fetch those files
 - In the Host, refactor the entry point to load asynchronously
 - In the Host, import whatever files you need from the remote
+
+## Using Shared Modules
+
+It is the Module Federation Plugin that is injecting or adding code
+
+- Container fetches Products remoteEntry.js file
+- Container fetches Cart remoteEntry.js file
+- Container notices that both require Faker!
+- Container can choose to load only one copy from either Cart or Products
+- Single copy is made available to both Cart + Products
+
+```
+    new ModuleFederationPlugin({
+      name: "cart",
+      filename: "remoteEntry.js",
+      exposes: {
+        "./CartShow": "./src/index",
+      },
+      shared: ["faker"],
+    }),
+```
+
+Only loading one single copy of faker
+
+### Async Script Loading

@@ -1,11 +1,6 @@
-import faker from "faker";
+// gives the ability to webpack to
+// asynchronously load up the bootstrap js file
+import("./boostrap");
 
-let products = "";
-
-for (let i = 0; i < 5; i++) {
-  const name = faker.commerce.productName();
-
-  products += `<div>${name}</div>`;
-}
-
-document.querySelector("#dev-products").innerHTML = products;
+// it fetches first the faker module which is required
+// and then src_boostrap_js.js is executed
