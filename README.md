@@ -96,7 +96,9 @@ This project is focused on **Run-Time Integration** using **Webpack Module Feder
 - In the Host, refactor the entry point to load asynchronously
 - In the Host, import whatever files you need from the remote
 
-## Using Shared Modules
+## Sharing Dependencies between Apps
+
+### Using Shared Modules
 
 It is the Module Federation Plugin that is injecting or adding code
 
@@ -120,3 +122,37 @@ It is the Module Federation Plugin that is injecting or adding code
 Only loading one single copy of faker
 
 ### Async Script Loading
+
+If a MF has a shared dependency then it can't run by it's own unless we have async script loading
+
+By using the **bootstrap** file like in container, we give webpack the opportunity to take a look at what files this code requires to run
+
+`products/src/index.js`
+
+```
+import('./bootstrap')
+```
+
+> Gives the ability to webpack to asynchronously load up the bootstrap JS file
+
+### Shared Module Versioning
+
+If 2 MFs have different versions of the same module, then both modules will be fetched - not the same.
+
+The Module Federation Plugin will take a look at the versions you specify in `package.json`
+
+If the have the same major version (e.g. 5.0.0 and 5.1.0 - both starting with 5 = major)
+
+### Singleton Loading
+
+In some scenarios, we don't want to load different copies of a module, because if we do we get an error - like react library.
+
+If I have singleton option, and 2 different major versions in the to MFs I get a warning message: Unsatisfied shared singleton module
+
+```
+shared: {
+  faker: {
+    singleton: true
+  }
+}
+```
