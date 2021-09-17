@@ -156,3 +156,113 @@ shared: {
   }
 }
 ```
+
+### Sub-App Execution Context
+
+We should be able
+
+- to develop each project in isolation
+- to run each project in the context of the container
+
+Products and Cart `index.html` file is only used during **development**
+
+Container's `index.html` is used during **development + production**
+
+Container Team might does not have an `#id` of `dev-products` in their `index.html` file
+
+### Solution
+
+`container/src/bootstrap.js`
+
+```
+import { mount as productsMount } from "products/ProductsIndex";
+import { mount as cartMount } from "cart/CartShow";
+
+productsMount(document.querySelector("#my-products"));
+cartMount(document.querySelector("#my-cart"));
+
+```
+
+`container/webpack.config.js`
+
+```
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
+
+module.exports = {
+  mode: "development",
+  devServer: {
+    port: 8080,
+  },
+  plugins: [
+    new ModuleFederationPlugin({
+      name: "container",
+      remotes: {
+        products: "products@http://localhost:8081/remoteEntry.js",
+        cart: "cart@http://localhost:8082/remoteEntry.js",
+      },
+    }),
+    new HtmlWebpackPlugin({
+      template: "./public/index.html",
+    }),
+  ],
+};
+
+```
+
+`products/src/bootstrap.js`
+
+```
+import faker from "faker";
+
+const mount = (el) => {
+  let products = "";
+
+  for (let i = 0; i < 5; i++) {
+    const name = faker.commerce.productName();
+
+    products += `<div>${name}</div>`;
+  }
+
+  el.innerHTML = products;
+};
+
+if (process.env.NODE_ENV === "development") {
+  const el = document.querySelector("#dev-products");
+  if (el) {
+    mount(el);
+  }
+}
+
+export { mount };
+```
+
+### A little Gotcha
+
+If I print the `cart` variable in console, I get a global variable from remoteEntry's - file - cart.
+
+If I change `container/src/bootstrap` to
+
+```
+cartMount(document.querySelector("#cart"));
+```
+
+and `container/public/index.html` to
+
+```
+<div id="cart"></div>
+```
+
+I get error
+
+> TypeError: fn is not a function
+
+and if I type the cart variable I get a reference to that div
+
+```
+<div id="cart"></div>
+```
+
+> If your ever assign an id to an element, your browser is going to try to create a new global variable, with the same exact name as the ID.
+
+> Overwrites the cart global variable that gets defined inside the remoteEntry file
