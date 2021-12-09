@@ -266,3 +266,65 @@ and if I type the cart variable I get a reference to that div
 > If your ever assign an id to an element, your browser is going to try to create a new global variable, with the same exact name as the ID.
 
 > Overwrites the cart global variable that gets defined inside the remoteEntry file
+> sa
+
+## Linking Multiple Apps Together
+
+### Application overview
+
+Group the pages of the app depending on their functionality:
+
+**Marketing**
+
+- Home Page
+- Pricing Page
+
+**Authentication**
+
+- Sign In Page
+- Sign Up Page
+
+**Dashboard**
+
+- Dashboard Page
+
+### Tech Stack
+
+Container: React
+
+- Marketing: React
+- Authentication: React
+- Dashboard: Vue
+
+Integration techniques are identical
+
+### Requirements
+
+Inflexible Requirement # 1
+
+- **Zero coupling between child projects**
+- No importing of functions/objects/classes/etc
+- No shared state
+- Shared libraries through MF is ok
+
+Inflexible Requirement # 2
+
+- **Near-zero coupling between container and child apps**
+- Container shouldn't assume that a child is using a particular framework
+- Any necessary communication done with callbacks or simple events
+
+Inflexible Requirement # 3
+
+- **CSS from one project shouldn't affect another**
+
+Inflexible Requirement # 4
+
+- **Version control (monorepo vs separate) shouldn't have any impact on the overall project**
+- Some people want to use monorepos
+- Some people want to keep everything in a separate repo
+
+Inflexible Requirement # 5
+
+- **Container should be able to decide to always use the latest version of a microfrontend or specify a specific version**
+- Container will always use the latest version of a child app (doesn't require a redeploy of container)
+- Container can specify exactly what version of a child it wants to use (requires a redeploy to change)
