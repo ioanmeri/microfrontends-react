@@ -328,3 +328,147 @@ Inflexible Requirement # 5
 - **Container should be able to decide to always use the latest version of a microfrontend or specify a specific version**
 - Container will always use the latest version of a child app (doesn't require a redeploy of container)
 - Container can specify exactly what version of a child it wants to use (requires a redeploy to change)
+
+### Why Import the Mount Function.
+
+Why not export the Marketing as a React component (as Container uses React and import it) instead we export the mount function ?
+
+Due to Inflexible Requirement #2
+
+- Near-zero coupling between container and child apps
+- Container **shouldn't assume** that a child is using **a particular framework**
+
+All coupling should be as generic as possible
+
+### Generic coupling
+
+React Container
+
+```
+import { mount } from "marketing/MarketingApp";
+import React, { useRef, useEffect } from "react";
+
+export default () => {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    mount(ref.current);
+  });
+
+  return <div ref={ref} />;
+};
+
+```
+
+### Delegating Shared Module
+
+How to avoid duplication of shared modules in every MF ?
+
+Delegate to Webpack
+
+(works even with newly installed packages and updates)
+
+In some cases though, specific versions of packages might be neccesary.
+
+In `webpack.dev.js` of each MF
+
+- require package.json literal
+
+```
+const packageJson = require("../package.json");
+
+```
+
+- use depencies in shared modules
+
+```
+  plugins: [
+    new ModuleFederationPlugin({
+      name: "container",
+      remotes: {
+        marketing: "marketing@http://localhost:8081/remoteEntry.js",
+      },
+      shared: packageJson.dependencies,
+    }),
+```
+
+## Implementing a CI/CD Pipeline
+
+### Requirements Around Deployment
+
+- Want to deploy each microfrontend independently (including the container)
+
+- Location of child app remoteEntry.js files must be knwon at **build time** (marketing@http://localhost:8081/remoteEntry.js)!
+
+- Many front-end deployment solutions assume you're deploying a single project - we need something that can handle multiple different ones
+
+- Probably need a CI/CD pipeline of some sort
+
+- At present, the remoteEntry.js file name is fixed! Need to think about caching issues
+
+It is way more common for you to queue up a process - or have some outside process - for deployment.
+
+### Path to Production
+
+Git Monorepo -->
+
+Did container (or marketing etc..) change ? -->
+
+Build a production container with webpack -->
+
+Upload to Amazon S3 -->
+
+Use Amazon CloudFront to serve files from S3
+
+### Workflow For Deploying Container
+
+Whenever code is pushed to the master/main branch
+
+and
+
+this commit contains a change to the 'container' folder
+
+#### Commands executed in a virtual machine hosted by Github
+
+- Change into the container folder
+
+- Install dependencies
+
+- Create a production build using webpack
+
+- Upload the result to AWS S3
+
+### YML file example
+
+Inside the hidden folder `.github/workflows` in root directory:
+
+```
+name: deploy-container
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "packages/container/**"
+
+defaults:
+  run:
+    working-directory: "packages/container"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: npm install
+      - run: npm run build
+
+      - uses: chrislennon/action-aws-cli@v1.1
+      - run: aws s3 sync dist s3://${{ secrets.AWS_S3_BUCKET_NAME }}/container/latest
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+```
