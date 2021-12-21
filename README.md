@@ -472,3 +472,91 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 ```
+
+## Deployment to AWS
+
+### Bucket setup
+
+- Create bucket in S3
+
+Go to Properties Tab:
+
+- Static website hosting -> Enable
+- Index document: index.html We won't have it in the root of the bucket but is going to be overriden
+- Error document: index.html
+
+Go to Permissions Tab of bucket:
+
+- Uncheck block all public access
+
+### Bucket policy
+
+- Edit -> Policy generator
+  To allow cloudfront distribution to access s3 files
+
+- Policy Type: S3 Bucket Policy
+- Effect: Allow
+- Principal: \*
+- Actions: GetObject
+- ARN: Bucket ARN
+
+Adding at the end of Bucket ARN: /\*
+
+ARN the name of the bucket that we want cloudfront to have access to
+
+### Cloudfront Distribution
+
+- Cloudfront -> Create Distribution -> Web
+
+- Origin name: select s3 bucket
+
+Default cache behavior:
+
+- Redirect HTTP to HTTPS
+
+Distribution Settings:
+To have a custom domain with certificate
+
+- Custom SSL Certificate
+
+#### A bit more configuration
+
+- Click on General of distribution
+- Default Root Object: `/container/latest/index.html`
+
+- Error Pages tab
+- HTTP Error Code: 403 Forbidden
+- Customize Error Response: Yes
+- Response Page Path: `/container/latest/index.html`
+- HTTP Response Code: 200 OK
+
+### Creating and Assigning Access Keys
+
+Create 3 environment variables, first generate an access keys:
+
+- Search for **IAM** -> Users -> Add user -> mfe-github-action
+- Access type: Programmatic access
+- Permissions: AmazonS3FullAccess, CloudfrontFullAccess
+- Copy in the settings of Github repository
+
+Setup secrets: values that we can only access inside github actions
+
+- Github repo -> Settings -> Secrets -> Create
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_S3_BUCKET_NAME
+
+### Fixing absolute path error
+
+`webpack.prod`
+
+```
+const prodConfig = {
+  mode: "production",
+  output: {
+    filename: "[name].[contenthash].js",
+    publicPath: "/container/latest/",
+  },
+```
+
+Whenever our html plugin starts to figure out all the different script tags it needs to add it will prepend them with the publicPath
