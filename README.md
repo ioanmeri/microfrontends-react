@@ -548,6 +548,18 @@ Setup secrets: values that we can only access inside github actions
 
 ### Fixing absolute path error
 
+In index.html of the production build there is a path to script:
+
+```
+<script src="main.[contentHash].js></script>
+```
+
+but is should actually point to:
+
+```
+<script src="/container/latest/main.[contentHash].js></script>
+```
+
 `webpack.prod`
 
 ```
@@ -560,3 +572,99 @@ const prodConfig = {
 ```
 
 Whenever our html plugin starts to figure out all the different script tags it needs to add it will prepend them with the publicPath
+
+## Microfrontend specific AWS Config
+
+### Manual Cache Invalidation
+
+When github action uploads to S3, then the S3 bucket has the updated version with `/container/latest/..` but in cloudfront we get the oldest version.
+
+Cloudfront does not automatically take a look at any changed files.
+
+- Go to CloudFront Distributions > distribution id > Invalidations Tab > Create Invalidation
+
+- Object Paths:
+
+```
+/container/latest/index.html
+```
+
+Only `index.html` **does not has content hash** appended to file name (all other js files have hash and get invalidated)
+
+### Automated Invalidation
+
+Whenever we deploy our application we do not want to manually have to create that invalidation
+
+`index.html` changes whenever the content hash of main.js' script src inside that file changes
+
+For that, we add in `container.yml` a new step on build job:
+
+```
+- run: aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_DISTRIBUTION_ID }} --paths "/container/latest/index.html"
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+```
+
+That creates a new invalidation in Invalidations Tab of CloudFront distribution with every deployment
+
+But for all other MFs, the invalidation rule should be for `remoteEntry.js` file like so:
+
+```
+- run: aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_DISTRIBUTION_ID }} --paths "/marketing/latest/remoteEntry.js"
+  env:
+    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+```
+
+### Production Domain
+
+**Step 1**
+
+Inside `packages/container/config/webpack.prop.js`, we need to configure PRODUCTION_DOMAIN enviroment variable which will be a github secret
+
+Copy domain name of CloudFront distribution and paste it as a Secret of that repo starting with https://
+
+Expose that environment variable during the build stage of container workflow
+
+```
+- run: npm run build
+  env:
+    PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+
+```
+
+**Step 2**
+
+For marketing remote entry file to point to the correct URL's we need to add public path as well:
+
+```
+output: {
+  filename: "[name].[contenthash].js",
+  publicPath: "/marketing/latest",
+},
+```
+
+**Note on shared modules**
+
+It's rather advantageous to have multiple smaller js files (especially using h2), which is happening because of shared modules:
+
+```
+shared: packageJson.dependencies,
+```
+
+We can remove shared dependencies and have them all in a large bundle file and having 1-2 js files loaded for them
+
+### A production-Style Workflow
+
+We do not want engineers to automatically push to master branch, eg: you might have a review process
+
+Workflow to review step:
+
+- Each team develops features on git branches named something like 'container-dev'
+- Feature complete and ready for deployment? Push branch to github
+- Create a pull request to merge into master/main
+- Other engineers review
+- When ready to deploy, merge the PR
+- Workflow detects a change to the master/main branch, deployment runs!
